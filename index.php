@@ -337,7 +337,6 @@ $csrf = generateCsrfToken();
           <input type="email" name="email" placeholder="yourname@gmail.com" required
                  value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" autocomplete="email">
         </div>
-        <p class="hint">* Only Gmail addresses accepted</p>
       </div>
 
       <div class="field">
