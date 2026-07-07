@@ -1,0 +1,19 @@
+{
+  "name": "Staycation Savings Offline",
+  "short_name": "Savings",
+  "description": "Standalone offline sinking funds tracker.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0c0c18",
+  "theme_color": "#e2c07d",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

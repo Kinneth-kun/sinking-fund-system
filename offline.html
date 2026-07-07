@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#e2c07d">
+<title>Staycation Savings - Offline</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="/assets/css/main.css">
+<style>
+  body {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 22px;
+    background:
+      radial-gradient(circle at top left, rgba(226,192,125,.14), transparent 34rem),
+      var(--dark);
+  }
+  .offline-panel {
+    width: min(100%, 430px);
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 16px;
+    padding: 26px;
+    text-align: center;
+  }
+  .offline-mark {
+    width: 58px;
+    height: 58px;
+    border-radius: 16px;
+    margin: 0 auto 16px;
+    display: grid;
+    place-items: center;
+    color: var(--dark);
+    background: linear-gradient(135deg, var(--gold), var(--gold2));
+    font-size: 28px;
+    font-weight: 800;
+  }
+  .offline-title {
+    font-family: Georgia, 'Times New Roman', serif;
+    color: var(--gold);
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+  .offline-copy {
+    color: var(--text2);
+    margin-bottom: 18px;
+  }
+</style>
+</head>
+<body>
+  <main class="offline-panel">
+    <div class="offline-mark">$</div>
+    <h1 class="offline-title">You are offline</h1>
+    <p class="offline-copy">Pages you already opened can still load from your phone. New database changes need the app server connection again.</p>
+    <button class="btn btn-gold" type="button" onclick="location.reload()">Try Again</button>
+  </main>
+</body>
+</html>

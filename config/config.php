@@ -25,7 +25,12 @@ define('SMTP_FROM_NAME', 'Staycation Savings Fund');
 // APP CONFIGURATION
 // =============================================
 define('APP_NAME', 'Staycation Savings');
-define('APP_URL', 'http://localhost:8000');  // Change to your local URL
+
+// App URL auto-detects the current host so phones on your Wi-Fi can install/use
+// the app without links pointing back to localhost on the phone.
+$appScheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$appHost = $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
+define('APP_URL', getenv('APP_URL') ?: $appScheme . '://' . $appHost);
 define('DAILY_RATE', 5);         // 5 pesos per day
 define('START_DATE', '2026-01-01');
 

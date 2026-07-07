@@ -8,8 +8,15 @@ $currentPage = basename($_SERVER['PHP_SELF'], '.php');
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#e2c07d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Staycation Savings">
 <title><?= $pageTitle ?? APP_NAME ?></title>
+<link rel="manifest" href="<?= APP_URL ?>/manifest.webmanifest">
+<link rel="icon" href="<?= APP_URL ?>/assets/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="<?= APP_URL ?>/assets/icons/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/main.css">

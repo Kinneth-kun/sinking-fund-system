@@ -1,0 +1,32 @@
+{
+  "name": "Staycation Savings",
+  "short_name": "Savings",
+  "description": "Offline-ready sinking funds tracker for Staycation Savings.",
+  "start_url": "/index.php",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0c0c18",
+  "theme_color": "#e2c07d",
+  "orientation": "portrait",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {
+      "src": "/assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/pages/dashboard.php",
+      "description": "Open the savings dashboard"
+    },
+    {
+      "name": "Record Payment",
+      "url": "/pages/payments.php",
+      "description": "Record a member payment"
+    }
+  ]
+}

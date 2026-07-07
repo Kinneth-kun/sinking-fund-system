@@ -165,8 +165,15 @@ $csrf = generateCsrfToken();
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#e2c07d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Staycation Savings">
 <title><?= APP_NAME ?> – Login</title>
+<link rel="manifest" href="<?= APP_URL ?>/manifest.webmanifest">
+<link rel="icon" href="<?= APP_URL ?>/assets/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="<?= APP_URL ?>/assets/icons/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -288,6 +295,10 @@ $csrf = generateCsrfToken();
 
   .clock { text-align:center; margin-top:22px; color:var(--muted); font-size:11.5px; letter-spacing:.5px; animation:fadeUp .5s ease .2s both; }
   .clock span { color:var(--gold); }
+  .pwa-install-btn,.offline-badge{position:fixed;left:max(16px,env(safe-area-inset-left));bottom:max(16px,env(safe-area-inset-bottom));z-index:3000;border-radius:12px;box-shadow:0 14px 34px rgba(0,0,0,.45)}
+  .pwa-install-btn{border:0;background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:800;padding:11px 15px;cursor:pointer}
+  .pwa-install-btn[hidden],.offline-badge[hidden]{display:none!important}
+  .offline-badge{background:rgba(231,76,106,.95);color:#fff;border:1px solid rgba(255,255,255,.18);font-size:12px;font-weight:700;padding:9px 12px}
 </style>
 </head>
 <body>
@@ -429,5 +440,6 @@ function tick() {
 }
 tick(); setInterval(tick, 1000);
 </script>
+<script src="<?= APP_URL ?>/assets/js/pwa.js"></script>
 </body>
 </html>

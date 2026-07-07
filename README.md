@@ -126,3 +126,38 @@ sinking-funds/
     └── js/main.js
 ```
 php -S localhost:8000
+
+---
+
+## Install on Phone / Offline App Mode
+
+This project is now a **Progressive Web App (PWA)**. Once opened in a supported mobile browser, it can be installed to the phone home screen and will cache the app shell for offline loading.
+
+### Android / Chrome
+1. Open the app URL in Chrome.
+2. Tap the **Install app** button when it appears, or open Chrome menu -> **Add to Home screen**.
+3. Open **Staycation Savings** from the home screen.
+
+### iPhone / Safari
+1. Open the app URL in Safari.
+2. Tap **Share**.
+3. Tap **Add to Home Screen**.
+
+### Offline behavior
+- The login screen, offline screen, app shell, and previously opened pages can load without internet.
+- Recording payments, editing members, OTP email login, and fresh database data still need the PHP/MySQL server connection.
+- For full offline data entry on a phone with no server, the next step is converting the storage layer from MySQL/PHP to browser storage such as IndexedDB, or packaging the app with a local mobile database.
+
+---
+
+## Fully Offline Android App
+
+The project now includes a standalone offline Android build that does **not** need PHP, MySQL, XAMPP, or this source folder running after installation.
+
+APK path:
+
+```text
+android-offline/build/outputs/apk/debug/app-debug.apk
+```
+
+This APK embeds the standalone app files from `standalone/` and stores data on the phone. Use the Backup screen inside the app to export/import JSON backups.
