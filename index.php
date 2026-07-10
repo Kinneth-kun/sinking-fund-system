@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/mailer.php';
+require_once __DIR__ . '/includes/icons.php';
 
 if (isLoggedIn()) {
     header('Location: ' . APP_URL . '/pages/dashboard.php');
@@ -34,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'credent
                 $expiresAt = date('Y-m-d H:i:s', time() + 600); // 10 minutes
 
                 // Invalidate old codes
-                $db->prepare("UPDATE otp_codes SET used = 1 WHERE user_id = ? AND used = 0")->execute([$user['id']]);
+                $db->prepare("UPDATE otp_codes SET used = TRUE WHERE user_id = ? AND used = FALSE")->execute([$user['id']]);
 
                 // Store new OTP
                 $db->prepare("INSERT INTO otp_codes (user_id, code, expires_at) VALUES (?, ?, ?)")
@@ -43,17 +44,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'credent
                 // Send OTP to the admin Gmail
                 $sent = sendOtpEmail($user['username'], $user['name'], $code);
 
-                // Store pending login in session
-                $_SESSION['login_step']      = 'otp';
-                $_SESSION['pending_user_id'] = $user['id'];
-                $_SESSION['pending_remember']= $remember;
-
-                $step = 'otp';
                 if ($sent) {
+                    $_SESSION['login_step']       = 'otp';
+                    $_SESSION['pending_user_id']  = $user['id'];
+                    $_SESSION['pending_remember'] = $remember;
+                    $step = 'otp';
                     $success = 'A 6-digit code has been sent to your Gmail. Enter it below.';
-                } else {
-                    // Dev fallback: show code on screen if email fails
+                } elseif (APP_ENV === 'local' && APP_DEBUG) {
+                    $_SESSION['login_step']       = 'otp';
+                    $_SESSION['pending_user_id']  = $user['id'];
+                    $_SESSION['pending_remember'] = $remember;
+                    $step = 'otp';
                     $success = "Email unavailable. Dev code: <strong style='color:#e2c07d;font-size:22px;letter-spacing:6px;font-family:monospace'>{$code}</strong>";
+                } else {
+                    // Do not show the code-entry screen when no code was delivered.
+                    $db->prepare("UPDATE otp_codes SET used = TRUE WHERE user_id = ? AND used = FALSE")->execute([$user['id']]);
+                    unset($_SESSION['login_step'], $_SESSION['pending_user_id'], $_SESSION['pending_remember']);
+                    $step = 'credentials';
+                    $error = 'We could not send your login code. No code was delivered. Please try again later or contact the administrator.';
                 }
             } else {
                 $error = 'Invalid email or password.';
@@ -78,25 +86,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'otp') {
         } else {
             $db = getDB();
 
-            // Use PHP time for expiry check to avoid MySQL timezone issues
+            // Use PHP time for a consistent expiry comparison.
             $nowTs = date('Y-m-d H:i:s');
 
             // Fetch the most recent unused code for this user
             $stmt = $db->prepare("
                 SELECT * FROM otp_codes
-                WHERE user_id = ? AND used = 0
+                WHERE user_id = ? AND used = FALSE
                 ORDER BY created_at DESC LIMIT 1
             ");
             $stmt->execute([$pendingId]);
             $otp = $stmt->fetch();
 
-            // Compare code and expiry in PHP (avoids MySQL timezone mismatch)
+            // Compare code and expiry in PHP.
             $codeMatches  = $otp && hash_equals($otp['code'], $enteredCode);
             $notExpired   = $otp && ($otp['expires_at'] > $nowTs);
 
             if ($codeMatches && $notExpired) {
                 // Mark OTP as used
-                $db->prepare("UPDATE otp_codes SET used = 1 WHERE id = ?")->execute([$otp['id']]);
+                $db->prepare("UPDATE otp_codes SET used = TRUE WHERE id = ?")->execute([$otp['id']]);
 
                 // Fetch user
                 $userStmt = $db->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
@@ -139,15 +147,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'resend'
 
         $code      = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $expiresAt = date('Y-m-d H:i:s', time() + 600);
-        $db->prepare("UPDATE otp_codes SET used = 1 WHERE user_id = ? AND used = 0")->execute([$pendingId]);
+        $db->prepare("UPDATE otp_codes SET used = TRUE WHERE user_id = ? AND used = FALSE")->execute([$pendingId]);
         $db->prepare("INSERT INTO otp_codes (user_id, code, expires_at) VALUES (?, ?, ?)")->execute([$pendingId, $code, $expiresAt]);
 
         $sent = sendOtpEmail($user['username'], $user['name'], $code);
         $step = 'otp';
         $_SESSION['login_step'] = 'otp';
-        $success = $sent
-            ? 'A new code has been sent to your Gmail.'
-            : "Email unavailable. Dev code: <strong style='color:#e2c07d;font-size:22px;letter-spacing:6px;font-family:monospace'>{$code}</strong>";
+        if ($sent) {
+            $success = 'A new code has been sent to your Gmail.';
+        } elseif (APP_ENV === 'local' && APP_DEBUG) {
+            $success = "Email unavailable. Dev code: <strong style='color:#e2c07d;font-size:22px;letter-spacing:6px;font-family:monospace'>{$code}</strong>";
+        } else {
+            $error = 'The login email could not be sent. Please try again later.';
+        }
     }
 }
 
@@ -183,11 +195,13 @@ $csrf = generateCsrfToken();
     --text:#e8e8f0; --muted:#8888aa; --error:#e74c6a; --success:#4ecb8d;
   }
   * { box-sizing:border-box; margin:0; padding:0; }
+  .ui-icon{width:1.1em;height:1.1em;display:inline-block;vertical-align:-.16em;flex:0 0 auto}
   body {
-    min-height:100vh; background:var(--dark);
+    min-height:100vh; min-height:100dvh; background:var(--dark);
     font-family:'DM Sans',sans-serif;
-    display:flex; align-items:center; justify-content:center;
-    overflow:hidden; position:relative;
+    display:flex; align-items:flex-start; justify-content:center;
+    overflow-x:hidden; overflow-y:auto; position:relative;
+    padding:clamp(14px, 3vh, 32px) 0;
   }
   body::before {
     content:''; position:fixed; width:500px; height:500px;
@@ -199,7 +213,7 @@ $csrf = generateCsrfToken();
     background:#4a90d9; border-radius:50%; filter:blur(90px);
     opacity:.08; bottom:-80px; right:-80px; pointer-events:none;
   }
-  .wrap { width:100%; max-width:420px; padding:20px; position:relative; z-index:1; }
+  .wrap { width:100%; max-width:420px; padding:20px; margin:auto 0; position:relative; z-index:1; }
 
   .steps {
     display:flex; align-items:center; justify-content:center;
@@ -219,8 +233,8 @@ $csrf = generateCsrfToken();
   .step-label { font-size:10px; color:var(--muted); text-align:center; margin-top:3px; }
 
   .logo { text-align:center; margin-bottom:28px; animation:fadeUp .5s ease both; }
-  .logo-icon { font-size:48px; display:block; margin-bottom:10px; animation:bounce 2.5s ease-in-out infinite; }
-  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  .logo-icon { width:52px; height:52px; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; border:1px solid var(--border); border-radius:16px; color:var(--gold); background:rgba(226,192,125,.06); }
+  .logo-icon .ui-icon{width:27px;height:27px;stroke-width:1.6}
   .logo h1 { font-family:'Playfair Display',serif; font-size:26px; color:var(--gold); }
   .logo p  { color:var(--muted); font-size:12px; margin-top:4px; }
 
@@ -278,6 +292,7 @@ $csrf = generateCsrfToken();
     color:var(--dark); font-family:'DM Sans',sans-serif;
     font-size:15px; font-weight:700; cursor:pointer;
     transition:opacity .2s, transform .1s; letter-spacing:.3px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
   }
   .btn-primary:hover  { opacity:.9; transform:translateY(-1px); }
   .btn-primary:active { transform:translateY(0); }
@@ -288,6 +303,7 @@ $csrf = generateCsrfToken();
     transition:color .2s; text-decoration:none; display:inline-block;
   }
   .btn-ghost:hover { color:var(--gold); }
+  .btn-ghost .ui-icon{margin-right:5px}
   .btn-ghost:disabled { opacity:.4; cursor:not-allowed; }
 
   .action-row { display:flex; align-items:center; justify-content:space-between; margin-top:16px; }
@@ -299,13 +315,38 @@ $csrf = generateCsrfToken();
   .pwa-install-btn{border:0;background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:800;padding:11px 15px;cursor:pointer}
   .pwa-install-btn[hidden],.offline-badge[hidden]{display:none!important}
   .offline-badge{background:rgba(231,76,106,.95);color:#fff;border:1px solid rgba(255,255,255,.18);font-size:12px;font-weight:700;padding:9px 12px}
+
+  /* Keep the full form visible on common laptop screens while preserving
+     vertical scrolling for smaller displays and browser UI overlays. */
+  @media (min-width:600px) and (max-height:760px) {
+    body { padding:8px 0; }
+    .wrap { padding:10px 20px; }
+    .logo { margin-bottom:14px; }
+    .logo-icon { width:44px; height:44px; margin-bottom:4px; }
+    .logo h1 { font-size:24px; }
+    .steps { margin-bottom:16px; }
+    .step-dot { width:32px; height:32px; }
+    .card { padding:24px 32px; }
+    .card-sub { margin-bottom:16px; }
+    .field { margin-bottom:14px; }
+    .remember-row { margin-bottom:16px; }
+    .clock { margin-top:12px; }
+  }
+
+  @media (max-width:480px) {
+    body { padding:0; }
+    .wrap { padding:20px 16px 28px; }
+    .card { padding:24px 20px; border-radius:16px; }
+    .logo { margin-bottom:20px; }
+    .steps { margin-bottom:20px; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <div class="logo">
-    <span class="logo-icon">💰</span>
+    <span class="logo-icon"><?= uiIcon('wallet') ?></span>
     <h1><?= APP_NAME ?></h1>
     <p>Savings 2k26 · Secure Login</p>
   </div>
@@ -326,10 +367,10 @@ $csrf = generateCsrfToken();
   <div class="card">
 
     <?php if ($error): ?>
-    <div class="alert alert-error">⚠️ <?= htmlspecialchars($error) ?></div>
+    <div class="alert alert-error"><?= uiIcon('alert') ?> <?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
     <?php if ($success): ?>
-    <div class="alert alert-success">✅ <?= $success ?></div>
+    <div class="alert alert-success"><?= uiIcon('check-circle') ?> <?= $success ?></div>
     <?php endif; ?>
 
     <?php if ($step === 'credentials'): ?>
@@ -344,7 +385,7 @@ $csrf = generateCsrfToken();
       <div class="field">
         <label>Gmail Address</label>
         <div class="input-wrap">
-          <span class="input-icon">✉</span>
+          <span class="input-icon"><?= uiIcon('mail') ?></span>
           <input type="email" name="email" placeholder="yourname@gmail.com" required
                  value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" autocomplete="email">
         </div>
@@ -353,7 +394,7 @@ $csrf = generateCsrfToken();
       <div class="field">
         <label>Password</label>
         <div class="input-wrap">
-          <span class="input-icon">🔒</span>
+          <span class="input-icon"><?= uiIcon('lock') ?></span>
           <input type="password" name="password" placeholder="Your password" required autocomplete="current-password">
         </div>
       </div>
@@ -363,7 +404,7 @@ $csrf = generateCsrfToken();
         <label for="remember">Keep me logged in for 7 days</label>
       </div>
 
-      <button type="submit" class="btn-primary">📨 Send Login Code to Gmail</button>
+      <button type="submit" class="btn-primary"><?= uiIcon('send') ?> Send Login Code to Gmail</button>
     </form>
 
     <div style="text-align:center;margin-top:18px">
@@ -391,14 +432,14 @@ $csrf = generateCsrfToken();
 
       <div class="countdown">Expires in <span id="timer">10:00</span></div>
 
-      <button type="submit" class="btn-primary">🔓 Verify & Sign In</button>
+      <button type="submit" class="btn-primary"><?= uiIcon('unlock') ?> Verify & Sign In</button>
     </form>
 
     <div class="action-row">
       <form method="POST">
         <input type="hidden" name="csrf_token" value="<?= $csrf ?>">
         <input type="hidden" name="form" value="resend">
-        <button type="submit" class="btn-ghost" id="resend-btn" disabled>🔄 Resend code</button>
+        <button type="submit" class="btn-ghost" id="resend-btn" disabled><?= uiIcon('refresh') ?> Resend code</button>
       </form>
       <a href="?cancel=1" class="btn-ghost">← Different account</a>
     </div>

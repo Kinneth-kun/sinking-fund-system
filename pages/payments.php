@@ -28,6 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      . date('M d, Y', strtotime($result['date_to'])) . ").";
                 if ($result['remainder'] > 0)
                     $msg .= " ₱{$result['remainder']} remainder not counted.";
+                if ($result['advance_days'] > 0) {
+                    $msg .= " Advance payment: {$result['advance_days']} day"
+                         . ($result['advance_days'] === 1 ? '' : 's')
+                         . " paid through " . date('M d, Y', strtotime($result['advance_to'])) . ".";
+                }
             } else {
                 $msg = $result['message']; $msgType = 'error';
             }
@@ -49,7 +54,7 @@ $filterMonth  = $_GET['filter_month'] ?? '';
 
 $whereClauses = []; $params = [];
 if ($filterMember) { $whereClauses[] = 'p.member_id = ?'; $params[] = $filterMember; }
-if ($filterMonth)  { $whereClauses[] = "DATE_FORMAT(p.payment_date,'%Y-%m') = ?"; $params[] = $filterMonth; }
+if ($filterMonth)  { $whereClauses[] = "TO_CHAR(p.payment_date, 'YYYY-MM') = ?"; $params[] = $filterMonth; }
 $where = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
 
 $stmt = $db->prepare("
@@ -63,10 +68,12 @@ $payments = $stmt->fetchAll();
 // Member stats for JS
 $allStats = $db->query("
     SELECT m.id, m.name,
-           COUNT(pd.id) as paid_days,
-           (DATEDIFF(NOW(),'2026-01-01')+1) as elapsed
+           COUNT(pd.id) FILTER (WHERE pd.covered_date <= CURRENT_DATE) as paid_days,
+           COUNT(pd.id) FILTER (WHERE pd.covered_date > CURRENT_DATE) as advance_days,
+           MAX(pd.covered_date) FILTER (WHERE pd.covered_date > CURRENT_DATE) as advance_until,
+           (CURRENT_DATE - DATE '2026-01-01' + 1) as elapsed
     FROM members m
-    LEFT JOIN payment_days pd ON pd.member_id=m.id AND pd.covered_date<=NOW()
+    LEFT JOIN payment_days pd ON pd.member_id=m.id
     WHERE m.status='active'
     GROUP BY m.id
 ")->fetchAll();
@@ -197,14 +204,14 @@ $allStats = $db->query("
 
 <?php if ($msg): ?>
 <div class="alert alert-<?= $msgType==='error'?'error':'success' ?>">
-  <?= $msgType==='error'?'⚠️':'✅' ?> <?= htmlspecialchars($msg) ?>
+  <?= uiIcon($msgType==='error' ? 'alert' : 'check-circle') ?> <?= htmlspecialchars($msg) ?>
 </div>
 <?php endif; ?>
 
 <div class="grid-2 mb-6">
   <!-- ── RECORD PAYMENT CARD ── -->
   <div class="card">
-    <h3 class="section-title mb-4">💵 Record Payment</h3>
+    <h3 class="section-title mb-4"><?= uiIcon('banknote') ?> Record Payment</h3>
 
     <form method="POST" id="payment-form">
       <input type="hidden" name="action" value="record_payment">
@@ -232,7 +239,7 @@ $allStats = $db->query("
           <!-- Dropdown panel -->
           <div class="custom-select-dropdown">
             <div class="custom-select-search">
-              <input type="text" placeholder="🔍 Search member…"
+              <input type="text" placeholder="Search member…"
                      oninput="filterCustomSelect(this, 'member-select-wrap')"
                      onclick="event.stopPropagation()">
             </div>
@@ -263,6 +270,9 @@ $allStats = $db->query("
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:5px;">
           <span class="text-muted">Balance due:</span> <span class="text-danger fw-600" id="info-balance">—</span>
         </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-top:5px;">
+          <span class="text-muted">Paid in advance:</span> <span class="text-info fw-600" id="info-advance">—</span>
+        </div>
       </div>
 
       <div class="form-group">
@@ -284,15 +294,15 @@ $allStats = $db->query("
       </div>
 
       <div style="display:flex;gap:10px">
-        <button type="button" class="btn btn-ghost" onclick="previewPayment()">👁 Preview</button>
-        <button type="submit" class="btn btn-gold" style="flex:1">✅ Record Payment</button>
+        <button type="button" class="btn btn-ghost" onclick="previewPayment()"><?= uiIcon('eye') ?> Preview</button>
+        <button type="submit" class="btn btn-gold" style="flex:1"><?= uiIcon('check') ?> Record Payment</button>
       </div>
     </form>
   </div>
 
   <!-- Preview Panel -->
   <div class="card" id="preview-panel" style="display:none">
-    <h3 class="section-title mb-4">👁 Payment Preview</h3>
+    <h3 class="section-title mb-4"><?= uiIcon('eye') ?> Payment Preview</h3>
     <div id="preview-content"></div>
   </div>
 </div>
@@ -300,7 +310,7 @@ $allStats = $db->query("
 <!-- ── PAYMENT HISTORY ── -->
 <div class="card">
   <div class="section-header mb-4" style="flex-wrap:wrap;gap:10px">
-    <span class="section-title">📋 Payment History</span>
+    <span class="section-title"><?= uiIcon('clipboard') ?> Payment History</span>
 
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
 
@@ -326,7 +336,7 @@ $allStats = $db->query("
         </div>
         <div class="custom-select-dropdown">
           <div class="custom-select-search">
-            <input type="text" placeholder="🔍 Search…"
+            <input type="text" placeholder="Search…"
                    oninput="filterCustomSelect(this,'filter-member-wrap')"
                    onclick="event.stopPropagation()">
           </div>
@@ -394,7 +404,7 @@ $allStats = $db->query("
             <form method="POST" onsubmit="return confirm('Delete this payment? Covered days will be unmarked.')">
               <input type="hidden" name="action" value="delete_payment">
               <input type="hidden" name="payment_id" value="<?= $p['id'] ?>">
-              <button class="btn btn-danger btn-sm" type="submit">🗑️</button>
+              <button class="btn btn-danger btn-sm" type="submit" aria-label="Delete payment"><?= uiIcon('trash') ?></button>
             </form>
           </td>
         </tr>
@@ -417,7 +427,9 @@ memberData[<?= $ms['id'] ?>] = {
   paid:    <?= $ms['paid_days'] ?>,
   elapsed: <?= $elapsed ?>,
   unpaid:  <?= $unpaid ?>,
-  balance: <?= $balance ?>
+  balance: <?= $balance ?>,
+  advance: <?= (int)$ms['advance_days'] ?>,
+  advanceUntil: <?= json_encode($ms['advance_until']) ?>
 };
 <?php endforeach; ?>
 
@@ -515,6 +527,9 @@ function updateMemberInfo(id) {
   document.getElementById('info-paid').textContent    = info.paid + ' days';
   document.getElementById('info-unpaid').textContent  = info.unpaid + ' days';
   document.getElementById('info-balance').textContent = '₱' + info.balance.toLocaleString('en-PH',{minimumFractionDigits:2});
+  document.getElementById('info-advance').textContent = info.advance > 0
+    ? `${info.advance} days · through ${new Date(info.advanceUntil + 'T00:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'})}`
+    : 'None';
   updateCalc();
 }
 
@@ -525,6 +540,7 @@ function updateCalc() {
   if (!amount || !memberId) { preview.textContent = ''; return; }
   const days = Math.floor(amount / 5);
   const rem  = (amount % 5).toFixed(2);
+  const advanceDays = Math.max(0, days - (info?.unpaid || 0));
   preview.innerHTML = `<span style="color:var(--gold)">= ${days} day${days!==1?'s':''} covered</span>`
     + (parseFloat(rem)>0 ? ` · <span style="color:var(--warning)">₱${rem} remainder</span>` : '');
 }
@@ -544,6 +560,7 @@ function previewPayment() {
       <div style="font-size:13px;margin-bottom:8px"><span class="text-muted">Member:</span> <strong class="text-gold">${info?.name||'Selected'}</strong></div>
       <div style="font-size:13px;margin-bottom:8px"><span class="text-muted">Amount:</span> <strong class="text-success">₱${amount.toLocaleString('en-PH',{minimumFractionDigits:2})}</strong></div>
       <div style="font-size:13px;margin-bottom:8px"><span class="text-muted">Days covered:</span> <strong class="text-gold">${days} day${days!==1?'s':''}</strong></div>
+      ${advanceDays>0?`<div style="font-size:13px;margin-bottom:8px"><span class="text-muted">New advance coverage:</span> <strong class="text-info">${advanceDays} day${advanceDays!==1?'s':''}</strong></div>`:''}
       ${parseFloat(rem)>0?`<div style="font-size:13px;margin-bottom:8px"><span class="text-muted">Remainder:</span> <span class="text-warning">₱${rem} (not counted)</span></div>`:''}
       <div style="font-size:13px"><span class="text-muted">Weeks:</span> <strong class="text-info">${(days/7).toFixed(1)} weeks</strong></div>
     </div>

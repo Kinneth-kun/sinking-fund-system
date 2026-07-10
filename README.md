@@ -1,11 +1,37 @@
 # 💰 Staycation Savings — Sinking Funds System
 ### Setup Guide (No XAMPP)
 
+## Deploy to Vercel
+
+The shared PHP application is configured for Vercel through `vercel.json` and
+the `api/index.php` serverless entrypoint. It requires an externally hosted,
+PostgreSQL database; Vercel's function filesystem is not used for data.
+
+1. Create an empty PostgreSQL database (the Vercel Neon integration is recommended).
+2. Import `database/schema.postgresql.sql` into it.
+3. Import existing member and payment data separately, if needed.
+4. Create a Vercel project from this repository.
+5. Add every value from `.env.example` in **Project Settings → Environment
+   Variables**. Set `APP_URL` to the production Vercel URL and keep
+   `SESSION_DRIVER=database`.
+6. Deploy, visit `/setup.php` once to create the administrator, then log in.
+
+For CLI deployment, authenticate the Vercel CLI and run:
+
+```bash
+vercel
+vercel --prod
+```
+
+Never commit `.env`, database passwords, or SMTP credentials. If credentials
+were committed previously, rotate them before deploying because deleting them
+from the current file does not remove them from Git history.
+
 ---
 
 ## Requirements
 - **PHP 8.1+** (standalone, not XAMPP)
-- **MySQL 8.0+** (MySQL Workbench)
+- **PostgreSQL 14+**
 - **Composer** (for PHPMailer)
 - **PHP built-in server** OR any local web server (e.g., Laragon, Herd, or `php -S`)
 
@@ -25,9 +51,9 @@ This creates a `vendor/` folder with PHPMailer.
 
 ## Step 2 — Set Up the Database
 
-1. Open **MySQL Workbench**
-2. Connect to your local MySQL server
-3. Open `database.sql` in MySQL Workbench
+1. Open your PostgreSQL administration tool or `psql`.
+2. Connect to your local PostgreSQL server
+3. Import `database/schema.postgresql.sql`
 4. Run the script (⚡ Execute button or Ctrl+Shift+Enter)
 
 This creates the `sinking_funds_db` database and pre-loads the 18 members.
@@ -41,8 +67,8 @@ Edit `config/config.php`:
 ```php
 // Database
 define('DB_HOST', 'localhost');
-define('DB_USER', 'root');       // Your MySQL user
-define('DB_PASS', '');           // Your MySQL password
+define('DB_USER', 'postgres');   // Your PostgreSQL user
+define('DB_PASS', '');           // Your PostgreSQL password
 
 // Gmail SMTP
 define('SMTP_USERNAME', 'your_gmail@gmail.com');
@@ -106,7 +132,7 @@ sinking-funds/
 ├── verify.php         ← Email verification
 ├── logout.php
 ├── composer.json
-├── database.sql       ← Run this in MySQL Workbench first!
+├── database/schema.postgresql.sql  ← Import this first
 ├── config/
 │   └── config.php     ← Edit your DB + SMTP settings here
 ├── includes/
@@ -145,8 +171,8 @@ This project is now a **Progressive Web App (PWA)**. Once opened in a supported 
 
 ### Offline behavior
 - The login screen, offline screen, app shell, and previously opened pages can load without internet.
-- Recording payments, editing members, OTP email login, and fresh database data still need the PHP/MySQL server connection.
-- For full offline data entry on a phone with no server, the next step is converting the storage layer from MySQL/PHP to browser storage such as IndexedDB, or packaging the app with a local mobile database.
+- Recording payments, editing members, OTP email login, and fresh database data still need the PHP/PostgreSQL server connection.
+- For full offline data entry on a phone with no server, the next step is converting the storage layer from PostgreSQL/PHP to browser storage such as IndexedDB, or packaging the app with a local mobile database.
 
 ---
 

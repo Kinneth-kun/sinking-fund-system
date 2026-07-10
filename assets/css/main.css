@@ -381,6 +381,7 @@ select.select-inline option { background-color: #1a1a2e; color: var(--text); }
 .day-cell.paid     { background: rgba(78,203,141,.2);  color: var(--success); border: 1px solid rgba(78,203,141,.3); }
 .day-cell.unpaid   { background: rgba(231,76,106,.15); color: var(--danger);  border: 1px solid rgba(231,76,106,.3); }
 .day-cell.future   { background: rgba(255,255,255,.04); color: var(--text2);  border: 1px solid var(--border2); }
+.day-cell.advance  { background: rgba(74,144,217,.2); color: var(--info); border: 1px solid rgba(74,144,217,.4); }
 .day-cell.not-started { background: transparent; color: var(--text2); opacity: .4; }
 .day-cell.header   { background: none; color: var(--gold); font-size: 10px; text-transform: uppercase; letter-spacing: .5px; aspect-ratio: auto; padding: 4px 0; }
 
@@ -574,3 +575,8 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; 
   .member-card-grid { grid-template-columns: 1fr; }
   .topbar { height: 50px; }
 }
+/* Minimal outline icon system */
+.ui-icon{width:1.1em;height:1.1em;display:inline-block;vertical-align:-.16em;flex:0 0 auto}
+.ui-icon.icon-sm{width:14px;height:14px}.ui-icon.icon-md{width:20px;height:20px}.ui-icon.icon-lg{width:28px;height:28px}
+.btn .ui-icon,.nav-item .ui-icon{margin-right:7px}
+.stat-icon .ui-icon{width:25px;height:25px;stroke-width:1.6}

@@ -29,7 +29,7 @@ function sendVerificationEmail(string $toEmail, string $toName, string $token): 
         $mail->Body = "
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
             <div style='background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 30px; text-align: center;'>
-                <h1 style='color: #e2c07d; margin: 0; font-size: 24px;'>💰 " . APP_NAME . "</h1>
+                <h1 style='color: #e2c07d; margin: 0; font-size: 24px;'>" . APP_NAME . "</h1>
             </div>
             <div style='background: #f9f9f9; padding: 30px;'>
                 <h2 style='color: #333;'>Hello, {$toName}!</h2>
@@ -53,6 +53,11 @@ function sendVerificationEmail(string $toEmail, string $toName, string $token): 
 }
 
 function sendOtpEmail(string $toEmail, string $toName, string $code): bool {
+    if (SMTP_USERNAME === '' || SMTP_PASSWORD === '' || SMTP_FROM_EMAIL === '') {
+        error_log('[OTP Mailer ERROR] SMTP credentials are incomplete.');
+        return false;
+    }
+
     $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
@@ -65,7 +70,7 @@ function sendOtpEmail(string $toEmail, string $toName, string $code): bool {
         $mail->SMTPDebug  = 0; // Set to 2 temporarily if you need to debug SMTP
 
         $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
-        $mail->addAddress($toEmail, $toName); // ✅ Send to the user's Gmail
+        $mail->addAddress($toEmail, $toName);
 
         $mail->isHTML(true);
         $mail->Subject = 'Your Login Code: ' . $code . ' — ' . APP_NAME;
@@ -117,7 +122,7 @@ function sendPasswordResetEmail(string $toEmail, string $toName, string $token):
         $mail->Body = "
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
             <div style='background: linear-gradient(135deg, #1a1a2e, #16213e); padding: 30px; text-align: center;'>
-                <h1 style='color: #e2c07d; margin: 0;'>💰 " . APP_NAME . "</h1>
+                <h1 style='color: #e2c07d; margin: 0;'>" . APP_NAME . "</h1>
             </div>
             <div style='background: #f9f9f9; padding: 30px;'>
                 <h2>Password Reset Request</h2>

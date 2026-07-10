@@ -36,9 +36,9 @@ if ($selMember) {
 $allMemberStatus = [];
 if (!$selMember) {
     $stmt = $db->prepare("
-        SELECT DAY(pd.covered_date) as day_num, COUNT(DISTINCT pd.member_id) as count
+        SELECT EXTRACT(DAY FROM pd.covered_date) as day_num, COUNT(DISTINCT pd.member_id) as count
         FROM payment_days pd
-        WHERE YEAR(pd.covered_date) = ? AND MONTH(pd.covered_date) = ?
+        WHERE EXTRACT(YEAR FROM pd.covered_date) = ? AND EXTRACT(MONTH FROM pd.covered_date) = ?
         GROUP BY day_num
     ");
     $stmt->execute([$selYear, $selMonth]);
@@ -66,7 +66,7 @@ $totalMembers = count($members);
   <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
     <select class="form-control" style="width:180px;padding:8px 10px;font-size:13px;"
             onchange="location.href='?month=<?= $selMonth ?>&year=<?= $selYear ?>&member_id='+this.value">
-      <option value="">📅 All Members View</option>
+      <option value="">All Members View</option>
       <?php foreach ($members as $m): ?>
       <option value="<?= $m['id'] ?>" <?= $m['id']==$selMember?'selected':'' ?>><?= htmlspecialchars($m['name']) ?></option>
       <?php endforeach; ?>
@@ -110,6 +110,7 @@ $totalMembers = count($members);
 
   $paidCount   = array_count_values($dayStatus)['paid'] ?? 0;
   $unpaidCount = array_count_values($dayStatus)['unpaid'] ?? 0;
+  $advanceCount = array_count_values($dayStatus)['advance'] ?? 0;
 ?>
 <div class="card mb-6">
   <div class="section-header mb-4">
@@ -121,10 +122,11 @@ $totalMembers = count($members);
       </div>
     </div>
     <div style="display:flex;gap:14px;font-size:13px">
-      <span>✅ <strong class="text-success"><?= $paidCount ?></strong> paid</span>
-      <span>❌ <strong class="text-danger"><?= $unpaidCount ?></strong> unpaid</span>
+      <span><?= uiIcon('check-circle') ?> <strong class="text-success"><?= $paidCount ?></strong> paid</span>
+      <span><?= uiIcon('x-circle') ?> <strong class="text-danger"><?= $unpaidCount ?></strong> unpaid</span>
+      <?php if ($advanceCount > 0): ?><span><strong class="text-info"><?= $advanceCount ?></strong> paid in advance</span><?php endif; ?>
       <?php if ($unpaidCount > 0): ?>
-      <a href="payments.php?member_id=<?= $selMember ?>" class="btn btn-gold btn-sm">💵 Pay ₱<?= number_format($unpaidCount * 5, 0) ?></a>
+      <a href="payments.php?member_id=<?= $selMember ?>" class="btn btn-gold btn-sm"><?= uiIcon('banknote') ?> Pay ₱<?= number_format($unpaidCount * 5, 0) ?></a>
       <?php endif; ?>
     </div>
   </div>
@@ -148,10 +150,11 @@ $totalMembers = count($members);
         'paid'        => 'paid',
         'unpaid'      => 'unpaid',
         'future'      => 'future',
+        'advance'     => 'advance',
         'not_started' => 'not-started',
         default       => 'future'
       };
-      $icon = match($status) { 'paid'=>'✓','unpaid'=>'✗', default=>'' };
+      $icon = match($status) { 'paid'=>'✓','advance'=>'✓','unpaid'=>'✗', default=>'' };
     ?>
     <div class="day-cell <?= $cssClass ?>" title="<?= $months[$selMonth-1] ?> <?= $d ?> — <?= ucfirst($status) ?>">
       <span><?= $d ?></span>
@@ -165,6 +168,7 @@ $totalMembers = count($members);
     <span><span class="badge badge-success">✓</span> Paid (₱5)</span>
     <span><span class="badge badge-danger">✗</span> Unpaid (owes ₱5)</span>
     <span><span class="badge badge-info">—</span> Future</span>
+    <span><span class="badge badge-info">✓</span> Paid in advance</span>
   </div>
 </div>
 
@@ -174,7 +178,7 @@ $totalMembers = count($members);
 
 <div class="card">
   <div class="section-header mb-4">
-    <span class="section-title">📆 <?= $months[$selMonth-1] ?> <?= $selYear ?> — All Members Overview</span>
+    <span class="section-title"><?= uiIcon('calendar') ?> <?= $months[$selMonth-1] ?> <?= $selYear ?> — All Members Overview</span>
     <span class="text-muted" style="font-size:12px">Color = payers that day / <?= $totalMembers ?> total</span>
   </div>
 
@@ -225,21 +229,21 @@ $totalMembers = count($members);
         <tbody>
           <?php foreach ($members as $m):
             $ms = getMemberMonthStatus($m['id'], $selYear, $selMonth);
-            $paid = array_count_values($ms)['paid'] ?? 0;
+            $paid = (array_count_values($ms)['paid'] ?? 0) + (array_count_values($ms)['advance'] ?? 0);
             $unpaid = array_count_values($ms)['unpaid'] ?? 0;
           ?>
           <tr>
             <td style="white-space:nowrap;font-weight:600"><?= htmlspecialchars($m['name']) ?></td>
             <?php for ($d=1;$d<=$daysInMonth;$d++):
               $s = $ms[$d] ?? 'future';
-              $bg = match($s) { 'paid'=>'rgba(78,203,141,.2)', 'unpaid'=>'rgba(231,76,106,.2)', default=>'transparent' };
-              $icon = match($s) { 'paid'=>'✓', 'unpaid'=>'✗', default=>'' };
+              $bg = match($s) { 'paid'=>'rgba(78,203,141,.2)', 'advance'=>'rgba(74,144,217,.22)', 'unpaid'=>'rgba(231,76,106,.2)', default=>'transparent' };
+              $icon = match($s) { 'paid'=>'✓', 'advance'=>'✓', 'unpaid'=>'✗', default=>'' };
             ?>
             <td style="text-align:center;background:<?= $bg ?>;font-size:10px;padding:6px 2px"><?= $icon ?></td>
             <?php endfor; ?>
             <td style="text-align:center;color:var(--success);font-weight:700"><?= $paid ?></td>
             <td style="text-align:center;<?= $unpaid>0?'color:var(--danger);font-weight:700':'' ?>">
-              <?= $unpaid > 0 ? '₱'.($unpaid*5) : '✅' ?>
+              <?= $unpaid > 0 ? '₱'.($unpaid*5) : uiIcon('check') ?>
             </td>
           </tr>
           <?php endforeach; ?>

@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/mailer.php';
+require_once __DIR__ . '/includes/icons.php';
 
 // Block if admin already exists
 $db = getDB();
@@ -34,10 +35,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (sendVerificationEmail($email, $name, $token)) {
             $success = "Account created! A verification email has been sent to {$email}. Please verify before logging in.";
-        } else {
-            // If email fails, auto-verify for local dev
+        } elseif (APP_ENV === 'local' && APP_DEBUG) {
             $db->prepare("UPDATE users SET email_verified_at = NOW(), verification_token = NULL WHERE username = ?")->execute([$email]);
             $success = "Account created! (Email sending failed – auto-verified for local use.) You can now log in.";
+        } else {
+            $error = 'Account created, but the verification email could not be sent. Check the SMTP environment variables before continuing.';
         }
     }
 }
@@ -52,6 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <style>
   :root { --gold:#e2c07d; --gold2:#c9a227; --dark:#0f0f1a; --dark2:#1a1a2e; --card:rgba(255,255,255,0.04); --border:rgba(226,192,125,0.2); --text:#e8e8f0; --muted:#8888aa; --error:#e74c6a; --success:#4ecb8d; }
   * { box-sizing:border-box; margin:0; padding:0; }
+  .ui-icon{width:1.1em;height:1.1em;display:inline-block;vertical-align:-.16em}
+  .ui-icon.icon-lg{width:27px;height:27px}
   body { min-height:100vh; background:var(--dark); font-family:'DM Sans',sans-serif; display:flex; align-items:center; justify-content:center; }
   body::before { content:''; position:fixed; width:500px; height:500px; background:var(--gold); border-radius:50%; filter:blur(100px); opacity:.1; top:-150px; right:-100px; }
   .wrap { width:100%; max-width:440px; padding:20px; animation:fadeUp .5s ease both; }
@@ -81,20 +85,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
 <div class="wrap">
   <div class="logo">
-    <div style="font-size:48px;margin-bottom:8px">💰</div>
+    <div style="width:52px;height:52px;margin:0 auto 12px;border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;justify-content:center;color:var(--gold);background:rgba(226,192,125,.06)"><?= uiIcon('wallet', 'icon-lg') ?></div>
     <h1><?= APP_NAME ?></h1>
     <p>Initial Admin Setup</p>
   </div>
   <div class="card">
     <h2>Create Admin Account</h2>
-    <?php if ($error): ?><div class="alert alert-error">⚠️ <?= htmlspecialchars($error) ?></div><?php endif; ?>
-    <?php if ($success): ?><div class="alert alert-success">✅ <?= htmlspecialchars($success) ?> <br><a href="index.php" style="color:var(--gold)">Go to Login →</a></div><?php else: ?>
+    <?php if ($error): ?><div class="alert alert-error"><?= uiIcon('alert') ?> <?= htmlspecialchars($error) ?></div><?php endif; ?>
+    <?php if ($success): ?><div class="alert alert-success"><?= uiIcon('check-circle') ?> <?= htmlspecialchars($success) ?> <br><a href="index.php" style="color:var(--gold)">Go to Login →</a></div><?php else: ?>
     <form method="POST">
       <div class="field"><label>Full Name</label><input type="text" name="name" required placeholder="Your Name"></div>
       <div class="field"><label>Gmail Address</label><input type="email" name="email" required placeholder="you@gmail.com"></div>
       <div class="field"><label>Password</label><input type="password" name="password" required placeholder="Min 8 characters"></div>
       <div class="field"><label>Confirm Password</label><input type="password" name="confirm" required placeholder="Repeat password"></div>
-      <button class="btn" type="submit">🚀 Create Account & Send Verification</button>
+      <button class="btn" type="submit"><?= uiIcon('send') ?> Create Account & Send Verification</button>
     </form>
     <?php endif; ?>
   </div>

@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'toggle') {
         $id = (int)($_POST['id'] ?? 0);
-        $db->prepare("UPDATE members SET status = IF(status='active','inactive','active') WHERE id = ?")->execute([$id]);
+        $db->prepare("UPDATE members SET status = CASE WHEN status='active' THEN 'inactive' ELSE 'active' END WHERE id = ?")->execute([$id]);
         $msg = 'Member status updated.';
     }
 
@@ -44,11 +44,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $members = $db->query("
     SELECT m.*,
-           COUNT(pd.id) as days_paid,
+           COUNT(pd.id) FILTER (WHERE pd.covered_date <= CURRENT_DATE) as days_paid,
+           COUNT(pd.id) FILTER (WHERE pd.covered_date > CURRENT_DATE) as advance_days,
+           MAX(pd.covered_date) FILTER (WHERE pd.covered_date > CURRENT_DATE) as advance_until,
            COUNT(pd.id) * 5 as total_paid,
-           (DATEDIFF(NOW(), '2026-01-01') + 1) as days_since_start
+           (CURRENT_DATE - DATE '2026-01-01' + 1) as days_since_start
     FROM members m
-    LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date <= NOW()
+    LEFT JOIN payment_days pd ON pd.member_id = m.id
     GROUP BY m.id
     ORDER BY m.name
 ")->fetchAll();
@@ -56,7 +58,7 @@ $members = $db->query("
 
 <?php if ($msg): ?>
 <div class="alert alert-<?= $msgType==='error' ? 'error' : 'success' ?>">
-  <?= $msgType==='error' ? '⚠️' : '✅' ?> <?= htmlspecialchars($msg) ?>
+  <?= uiIcon($msgType==='error' ? 'alert' : 'check-circle') ?> <?= htmlspecialchars($msg) ?>
 </div>
 <?php endif; ?>
 
@@ -68,10 +70,10 @@ $members = $db->query("
   </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;width:100%;max-width:380px">
     <input type="text" id="member-search" class="form-control"
-           placeholder="🔍 Search member…"
+           placeholder="Search member…"
            style="flex:1;padding:9px 13px;font-size:13px;">
     <button class="btn btn-gold" onclick="openModal('modal-add')" style="white-space:nowrap">
-      ➕ Add Member
+      <?= uiIcon('plus') ?> Add Member
     </button>
   </div>
 </div>
@@ -88,6 +90,7 @@ $members = $db->query("
         <th>Days Paid</th>
         <th>Total Paid</th>
         <th>Balance Due</th>
+        <th>Advance</th>
         <th>Rate</th>
         <th>Status</th>
         <th>Actions</th>
@@ -124,7 +127,16 @@ $members = $db->query("
         <td>
           <?= $balance > 0
             ? "<span class='text-danger fw-600'>₱" . number_format($balance, 2) . "</span>"
-            : '<span class="text-success">✅ Settled</span>' ?>
+            : '<span class="text-success">' . uiIcon('check') . ' Settled</span>' ?>
+        </td>
+
+        <td>
+          <?php if ((int)$m['advance_days'] > 0): ?>
+            <span class="badge badge-info"><?= (int)$m['advance_days'] ?> days</span>
+            <div class="text-muted" style="font-size:10px;margin-top:3px">through <?= date('M d, Y', strtotime($m['advance_until'])) ?></div>
+          <?php else: ?>
+            <span class="text-muted">—</span>
+          <?php endif; ?>
         </td>
 
         <td style="min-width:110px">
@@ -144,23 +156,23 @@ $members = $db->query("
 
         <td>
           <div style="display:flex;gap:5px;flex-wrap:nowrap">
-            <a href="payments.php?member_id=<?= $m['id'] ?>" class="btn btn-gold btn-sm">💵 Pay</a>
+            <a href="payments.php?member_id=<?= $m['id'] ?>" class="btn btn-gold btn-sm"><?= uiIcon('banknote') ?> Pay</a>
             <button class="btn btn-ghost btn-sm"
                     onclick="editMember(<?= htmlspecialchars(json_encode($m)) ?>)"
-                    title="Edit">✏️</button>
+                    title="Edit" aria-label="Edit"><?= uiIcon('save') ?></button>
             <form method="POST" style="display:inline">
               <input type="hidden" name="action" value="toggle">
               <input type="hidden" name="id" value="<?= $m['id'] ?>">
               <button class="btn btn-ghost btn-sm" type="submit"
                       title="<?= $m['status']==='active' ? 'Deactivate' : 'Activate' ?>">
-                <?= $m['status']==='active' ? '⏸️' : '▶️' ?>
+                <?= uiIcon($m['status']==='active' ? 'pause' : 'play') ?>
               </button>
             </form>
             <form method="POST" style="display:inline"
                   onsubmit="return confirm('Delete this member and ALL their payment data?')">
               <input type="hidden" name="action" value="delete">
               <input type="hidden" name="id" value="<?= $m['id'] ?>">
-              <button class="btn btn-danger btn-sm" type="submit" title="Delete">🗑️</button>
+              <button class="btn btn-danger btn-sm" type="submit" title="Delete" aria-label="Delete"><?= uiIcon('trash') ?></button>
             </form>
           </div>
         </td>
@@ -210,7 +222,7 @@ $members = $db->query("
       <div class="member-card-stat">
         <div class="member-card-stat-label">Balance Due</div>
         <div class="member-card-stat-value <?= $balance > 0 ? 'text-danger' : 'text-success' ?>">
-          <?= $balance > 0 ? '₱' . number_format($balance, 2) : '✅ Settled' ?>
+          <?= $balance > 0 ? '₱' . number_format($balance, 2) : uiIcon('check') . ' Settled' ?>
         </div>
       </div>
       <div class="member-card-stat">
@@ -218,6 +230,13 @@ $members = $db->query("
         <div class="member-card-stat-value" style="color:var(--text)"><?= $rate ?>%</div>
       </div>
     </div>
+
+    <?php if ((int)$m['advance_days'] > 0): ?>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;margin-bottom:12px;border:1px solid rgba(74,144,217,.25);background:rgba(74,144,217,.08);border-radius:9px;font-size:12px">
+      <span class="text-info fw-600">Advance payment</span>
+      <span><?= (int)$m['advance_days'] ?> days · paid through <?= date('M d, Y', strtotime($m['advance_until'])) ?></span>
+    </div>
+    <?php endif; ?>
 
     <!-- Progress bar -->
     <div style="margin-bottom:12px">
@@ -228,20 +247,20 @@ $members = $db->query("
 
     <!-- Action buttons -->
     <div class="member-card-actions">
-      <a href="payments.php?member_id=<?= $m['id'] ?>" class="btn btn-gold btn-sm">💵 Pay</a>
+      <a href="payments.php?member_id=<?= $m['id'] ?>" class="btn btn-gold btn-sm"><?= uiIcon('banknote') ?> Pay</a>
       <button class="btn btn-ghost btn-sm"
-              onclick="editMember(<?= htmlspecialchars(json_encode($m)) ?>)">✏️ Edit</button>
+              onclick="editMember(<?= htmlspecialchars(json_encode($m)) ?>)"><?= uiIcon('save') ?> Edit</button>
       <form method="POST" style="flex:1">
         <input type="hidden" name="action" value="toggle">
         <input type="hidden" name="id" value="<?= $m['id'] ?>">
         <button class="btn btn-ghost btn-sm" type="submit" style="width:100%;justify-content:center">
-          <?= $m['status']==='active' ? '⏸️ Deactivate' : '▶️ Activate' ?>
+          <?= uiIcon($m['status']==='active' ? 'pause' : 'play') ?> <?= $m['status']==='active' ? 'Deactivate' : 'Activate' ?>
         </button>
       </form>
       <form method="POST" onsubmit="return confirm('Delete this member and ALL payment data?')">
         <input type="hidden" name="action" value="delete">
         <input type="hidden" name="id" value="<?= $m['id'] ?>">
-        <button class="btn btn-danger btn-sm" type="submit">🗑️</button>
+        <button class="btn btn-danger btn-sm" type="submit" aria-label="Delete"><?= uiIcon('trash') ?></button>
       </form>
     </div>
 
@@ -255,7 +274,7 @@ $members = $db->query("
 <div class="modal-overlay" id="modal-add">
   <div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <h2 class="modal-title" style="margin:0">➕ Add New Member</h2>
+      <h2 class="modal-title" style="margin:0"><?= uiIcon('plus') ?> Add New Member</h2>
       <button class="modal-close" onclick="closeModal('modal-add')">✕</button>
     </div>
     <form method="POST">
@@ -270,7 +289,7 @@ $members = $db->query("
       </div>
       <div style="display:flex;gap:10px;margin-top:4px">
         <button type="button" class="btn btn-ghost" onclick="closeModal('modal-add')" style="flex:1">Cancel</button>
-        <button type="submit" class="btn btn-gold" style="flex:2">✅ Add Member</button>
+        <button type="submit" class="btn btn-gold" style="flex:2"><?= uiIcon('plus') ?> Add Member</button>
       </div>
     </form>
   </div>
@@ -282,7 +301,7 @@ $members = $db->query("
 <div class="modal-overlay" id="modal-edit">
   <div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <h2 class="modal-title" style="margin:0">✏️ Edit Member</h2>
+      <h2 class="modal-title" style="margin:0"><?= uiIcon('save') ?> Edit Member</h2>
       <button class="modal-close" onclick="closeModal('modal-edit')">✕</button>
     </div>
     <form method="POST">
@@ -298,7 +317,7 @@ $members = $db->query("
       </div>
       <div style="display:flex;gap:10px;margin-top:4px">
         <button type="button" class="btn btn-ghost" onclick="closeModal('modal-edit')" style="flex:1">Cancel</button>
-        <button type="submit" class="btn btn-gold" style="flex:2">💾 Save Changes</button>
+        <button type="submit" class="btn btn-gold" style="flex:2"><?= uiIcon('save') ?> Save Changes</button>
       </div>
     </form>
   </div>

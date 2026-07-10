@@ -36,11 +36,14 @@ for ($m = 1; $m <= 12; $m++) {
 
 // Top members all time
 $topMembers = $db->query("
-    SELECT m.name, COUNT(pd.id) as days_paid,
+    SELECT m.name,
+           COUNT(pd.id) FILTER (WHERE pd.covered_date <= CURRENT_DATE) as days_paid,
+           COUNT(pd.id) FILTER (WHERE pd.covered_date > CURRENT_DATE) as advance_days,
+           MAX(pd.covered_date) FILTER (WHERE pd.covered_date > CURRENT_DATE) as advance_until,
            COUNT(pd.id) * 5 as total_paid,
-           (DATEDIFF(NOW(), '2026-01-01')+1) as elapsed
+           (CURRENT_DATE - DATE '2026-01-01' + 1) as elapsed
     FROM members m
-    LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date <= NOW()
+    LEFT JOIN payment_days pd ON pd.member_id = m.id
     WHERE m.status = 'active'
     GROUP BY m.id, m.name
     ORDER BY total_paid DESC
@@ -49,10 +52,10 @@ $topMembers = $db->query("
 // Members with most arrears
 $mostArrears = $db->query("
     SELECT m.name, m.id,
-           (DATEDIFF(NOW(),'2026-01-01')+1 - COUNT(pd.id)) as unpaid_days,
-           (DATEDIFF(NOW(),'2026-01-01')+1 - COUNT(pd.id)) * 5 as arrears
+           (CURRENT_DATE - DATE '2026-01-01' + 1 - COUNT(pd.id)) as unpaid_days,
+           (CURRENT_DATE - DATE '2026-01-01' + 1 - COUNT(pd.id)) * 5 as arrears
     FROM members m
-    LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date <= NOW()
+    LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date <= CURRENT_DATE
     WHERE m.status = 'active'
     GROUP BY m.id, m.name
     ORDER BY arrears DESC
@@ -69,25 +72,25 @@ $collectionRate = $expectedTotal > 0 ? round(($grandTotal / $expectedTotal) * 10
 
 <div class="stat-grid mb-6">
   <div class="stat-card gold">
-    <span class="stat-icon">💰</span>
+    <span class="stat-icon"><?= uiIcon('wallet') ?></span>
     <div class="stat-label">Grand Total Collected</div>
     <div class="stat-value">₱<?= number_format($grandTotal, 2) ?></div>
     <div class="stat-sub"><?= $collectionRate ?>% of expected</div>
   </div>
   <div class="stat-card green">
-    <span class="stat-icon">✅</span>
+    <span class="stat-icon"><?= uiIcon('check-circle') ?></span>
     <div class="stat-label">Collection Rate</div>
     <div class="stat-value green"><?= $collectionRate ?>%</div>
     <div class="stat-sub">₱<?= number_format($expectedTotal,2) ?> expected</div>
   </div>
   <div class="stat-card blue">
-    <span class="stat-icon">📅</span>
+    <span class="stat-icon"><?= uiIcon('calendar') ?></span>
     <div class="stat-label">Deficit</div>
     <div class="stat-value blue">₱<?= number_format(max(0,$expectedTotal - $grandTotal), 2) ?></div>
     <div class="stat-sub">Uncollected so far</div>
   </div>
   <div class="stat-card gold">
-    <span class="stat-icon">👥</span>
+    <span class="stat-icon"><?= uiIcon('users') ?></span>
     <div class="stat-label">Active Members</div>
     <div class="stat-value"><?= $memberCount ?></div>
     <div class="stat-sub"><?= $elapsed ?> days tracked</div>
@@ -97,7 +100,7 @@ $collectionRate = $expectedTotal > 0 ? round(($grandTotal / $expectedTotal) * 10
 <div class="grid-2 mb-6">
   <!-- Monthly Chart -->
   <div class="card">
-    <div class="section-title mb-4">📊 Monthly Collections (2026)</div>
+    <div class="section-title mb-4"><?= uiIcon('chart') ?> Monthly Collections (2026)</div>
     <div id="chart-container" style="position:relative;height:240px">
       <?php
       $maxVal = max(1, max(array_column($monthlyData, 'expected')));
@@ -127,7 +130,7 @@ $collectionRate = $expectedTotal > 0 ? round(($grandTotal / $expectedTotal) * 10
 
   <!-- Members Arrears -->
   <div class="card">
-    <div class="section-title mb-4">⚠️ Highest Arrears</div>
+    <div class="section-title mb-4"><?= uiIcon('alert') ?> Highest Arrears</div>
     <?php foreach ($mostArrears as $i => $ma): ?>
     <div style="padding:10px 0;border-bottom:1px solid var(--border2)">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
@@ -147,7 +150,7 @@ $collectionRate = $expectedTotal > 0 ? round(($grandTotal / $expectedTotal) * 10
 <!-- Full Member Report -->
 <div class="card mb-6">
   <div class="section-header mb-4">
-    <span class="section-title">🏆 Full Member Report (All Time)</span>
+    <span class="section-title"><?= uiIcon('trophy') ?> Full Member Report (All Time)</span>
     <span class="chip"><?= $elapsed ?> days tracked</span>
   </div>
   <div class="table-wrap">
@@ -160,6 +163,7 @@ $collectionRate = $expectedTotal > 0 ? round(($grandTotal / $expectedTotal) * 10
           <th>Total Paid</th>
           <th>Unpaid Days</th>
           <th>Balance Due</th>
+          <th>Advance</th>
           <th>Rate</th>
           <th>Standing</th>
         </tr>
@@ -172,8 +176,7 @@ $collectionRate = $expectedTotal > 0 ? round(($grandTotal / $expectedTotal) * 10
         ?>
         <tr>
           <td>
-            <?php if ($i < 3) echo ['🥇','🥈','🥉'][$i];
-            else echo '<span class="text-muted">'.($i+1).'</span>'; ?>
+            <span class="text-muted"><?= $i + 1 ?></span>
           </td>
           <td>
             <div style="display:flex;align-items:center;gap:8px">
@@ -184,7 +187,13 @@ $collectionRate = $expectedTotal > 0 ? round(($grandTotal / $expectedTotal) * 10
           <td class="text-success fw-600"><?= $m['days_paid'] ?></td>
           <td class="fw-600">₱<?= number_format($m['total_paid'], 2) ?></td>
           <td class="<?= $unpaid>0?'text-danger':'text-success' ?>"><?= $unpaid ?></td>
-          <td><?= $balance>0 ? "<span class='text-danger fw-600'>₱".number_format($balance,2)."</span>" : '<span class="text-success">✅</span>' ?></td>
+          <td><?= $balance>0 ? "<span class='text-danger fw-600'>₱".number_format($balance,2)."</span>" : '<span class="text-success">' . uiIcon('check') . '</span>' ?></td>
+          <td>
+            <?php if ((int)$m['advance_days'] > 0): ?>
+              <span class="badge badge-info"><?= (int)$m['advance_days'] ?> days</span>
+              <div class="text-muted" style="font-size:10px;margin-top:3px">through <?= date('M d, Y', strtotime($m['advance_until'])) ?></div>
+            <?php else: ?><span class="text-muted">—</span><?php endif; ?>
+          </td>
           <td>
             <div style="display:flex;align-items:center;gap:6px">
               <div class="progress-wrap" style="width:60px"><div class="progress-bar <?= $rate>=100?'green':'' ?>" data-width="<?= $rate ?>"></div></div>
@@ -193,10 +202,11 @@ $collectionRate = $expectedTotal > 0 ? round(($grandTotal / $expectedTotal) * 10
           </td>
           <td>
             <?php
-            if ($rate >= 100) echo '<span class="badge badge-success">✨ Perfect</span>';
-            elseif ($rate >= 85) echo '<span class="badge badge-info">👍 Good</span>';
-            elseif ($rate >= 60) echo '<span class="badge badge-warning">⚠️ Fair</span>';
-            else echo '<span class="badge badge-danger">❌ Behind</span>';
+            if ((int)$m['advance_days'] > 0) echo '<span class="badge badge-info">Paid Ahead</span>';
+            elseif ($rate >= 100) echo '<span class="badge badge-success">Up to Date</span>';
+            elseif ($rate >= 85) echo '<span class="badge badge-info">Good</span>';
+            elseif ($rate >= 60) echo '<span class="badge badge-warning">Fair</span>';
+            else echo '<span class="badge badge-danger">Behind</span>';
             ?>
           </td>
         </tr>
@@ -208,7 +218,7 @@ $collectionRate = $expectedTotal > 0 ? round(($grandTotal / $expectedTotal) * 10
 
 <!-- Monthly Breakdown Table -->
 <div class="card">
-  <div class="section-title mb-4">📆 Monthly Breakdown</div>
+  <div class="section-title mb-4"><?= uiIcon('calendar') ?> Monthly Breakdown</div>
   <div class="table-wrap">
     <table>
       <thead>
@@ -230,7 +240,7 @@ $collectionRate = $expectedTotal > 0 ? round(($grandTotal / $expectedTotal) * 10
           <td class="fw-600"><?= $md['month'] ?> 2026 <?= $mn == (int)$today->format('n') ? '<span class="badge badge-gold" style="font-size:10px">Current</span>' : '' ?></td>
           <td class="text-success fw-600">₱<?= number_format($md['total'], 2) ?></td>
           <td class="text-muted">₱<?= number_format($md['expected'], 2) ?></td>
-          <td><?= $deficit > 0 ? "<span class='text-danger'>₱".number_format($deficit,2)."</span>" : ($isFuture ? '—' : '<span class="text-success">✅</span>') ?></td>
+          <td><?= $deficit > 0 ? "<span class='text-danger'>₱".number_format($deficit,2)."</span>" : ($isFuture ? '—' : '<span class="text-success">' . uiIcon('check') . '</span>') ?></td>
           <td>
             <?php if ($rate2 !== null && !$isFuture): ?>
             <div style="display:flex;align-items:center;gap:6px">

@@ -78,7 +78,7 @@ function showToast(message, type = 'success') {
 
   const toast = document.createElement('div');
   const colors = { success: '#4ecb8d', error: '#e74c6a', info: '#4a9df0', warning: '#f0a500' };
-  const icons  = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+  const icons  = { success: '✓', error: '×', info: 'i', warning: '!' };
   toast.style.cssText = `
     background:#1a1a2e;border:1px solid ${colors[type]};color:${colors[type]};
     padding:12px 18px;border-radius:12px;font-size:13.5px;

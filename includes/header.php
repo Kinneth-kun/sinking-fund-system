@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/icons.php';
 requireLogin();
 $user = getCurrentUser();
 $currentPage = basename($_SERVER['PHP_SELF'], '.php');
@@ -27,7 +28,7 @@ $currentPage = basename($_SERVER['PHP_SELF'], '.php');
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand">
-      <span class="brand-icon">💰</span>
+      <span class="brand-icon"><?= uiIcon('wallet', 'icon-lg') ?></span>
       <div>
         <div class="brand-name">Staycation</div>
         <div class="brand-sub">Savings Fund</div>
@@ -41,11 +42,11 @@ $currentPage = basename($_SERVER['PHP_SELF'], '.php');
     </div>
 
     <nav class="sidebar-nav">
-      <a href="<?= APP_URL ?>/pages/dashboard.php"  class="nav-item <?= $currentPage==='dashboard'  ? 'active' : '' ?>"><span>📊</span> Dashboard</a>
-      <a href="<?= APP_URL ?>/pages/calendar.php"   class="nav-item <?= $currentPage==='calendar'   ? 'active' : '' ?>"><span>📅</span> Calendar</a>
-      <a href="<?= APP_URL ?>/pages/members.php"    class="nav-item <?= $currentPage==='members'    ? 'active' : '' ?>"><span>👥</span> Members</a>
-      <a href="<?= APP_URL ?>/pages/payments.php"   class="nav-item <?= $currentPage==='payments'   ? 'active' : '' ?>"><span>💵</span> Payments</a>
-      <a href="<?= APP_URL ?>/pages/reports.php"    class="nav-item <?= $currentPage==='reports'    ? 'active' : '' ?>"><span>📈</span> Reports</a>
+      <a href="<?= APP_URL ?>/pages/dashboard.php" class="nav-item <?= $currentPage==='dashboard' ? 'active' : '' ?>"><?= uiIcon('dashboard') ?> Dashboard</a>
+      <a href="<?= APP_URL ?>/pages/calendar.php" class="nav-item <?= $currentPage==='calendar' ? 'active' : '' ?>"><?= uiIcon('calendar') ?> Calendar</a>
+      <a href="<?= APP_URL ?>/pages/members.php" class="nav-item <?= $currentPage==='members' ? 'active' : '' ?>"><?= uiIcon('users') ?> Members</a>
+      <a href="<?= APP_URL ?>/pages/payments.php" class="nav-item <?= $currentPage==='payments' ? 'active' : '' ?>"><?= uiIcon('banknote') ?> Payments</a>
+      <a href="<?= APP_URL ?>/pages/reports.php" class="nav-item <?= $currentPage==='reports' ? 'active' : '' ?>"><?= uiIcon('chart') ?> Reports</a>
     </nav>
 
     <div class="sidebar-footer">
@@ -56,7 +57,7 @@ $currentPage = basename($_SERVER['PHP_SELF'], '.php');
           <div class="user-role">Admin</div>
         </div>
       </div>
-      <a href="<?= APP_URL ?>/logout.php" class="logout-btn" title="Logout">⏻</a>
+      <a href="<?= APP_URL ?>/logout.php" class="logout-btn" title="Logout" aria-label="Logout"><?= uiIcon('logout') ?></a>
     </div>
   </aside>
 
