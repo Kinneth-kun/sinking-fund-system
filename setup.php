@@ -34,10 +34,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (sendVerificationEmail($email, $name, $token)) {
             $success = "Account created! A verification email has been sent to {$email}. Please verify before logging in.";
-        } else {
-            // If email fails, auto-verify for local dev
+        } elseif (APP_ENV === 'local' && APP_DEBUG) {
             $db->prepare("UPDATE users SET email_verified_at = NOW(), verification_token = NULL WHERE username = ?")->execute([$email]);
             $success = "Account created! (Email sending failed – auto-verified for local use.) You can now log in.";
+        } else {
+            $error = 'Account created, but the verification email could not be sent. Check the SMTP environment variables before continuing.';
         }
     }
 }

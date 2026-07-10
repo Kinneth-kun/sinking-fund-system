@@ -36,9 +36,9 @@ if ($selMember) {
 $allMemberStatus = [];
 if (!$selMember) {
     $stmt = $db->prepare("
-        SELECT DAY(pd.covered_date) as day_num, COUNT(DISTINCT pd.member_id) as count
+        SELECT EXTRACT(DAY FROM pd.covered_date) as day_num, COUNT(DISTINCT pd.member_id) as count
         FROM payment_days pd
-        WHERE YEAR(pd.covered_date) = ? AND MONTH(pd.covered_date) = ?
+        WHERE EXTRACT(YEAR FROM pd.covered_date) = ? AND EXTRACT(MONTH FROM pd.covered_date) = ?
         GROUP BY day_num
     ");
     $stmt->execute([$selYear, $selMonth]);

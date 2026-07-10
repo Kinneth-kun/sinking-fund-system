@@ -38,9 +38,9 @@ for ($m = 1; $m <= 12; $m++) {
 $topMembers = $db->query("
     SELECT m.name, COUNT(pd.id) as days_paid,
            COUNT(pd.id) * 5 as total_paid,
-           (DATEDIFF(NOW(), '2026-01-01')+1) as elapsed
+           (CURRENT_DATE - DATE '2026-01-01' + 1) as elapsed
     FROM members m
-    LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date <= NOW()
+    LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date <= CURRENT_DATE
     WHERE m.status = 'active'
     GROUP BY m.id, m.name
     ORDER BY total_paid DESC
@@ -49,10 +49,10 @@ $topMembers = $db->query("
 // Members with most arrears
 $mostArrears = $db->query("
     SELECT m.name, m.id,
-           (DATEDIFF(NOW(),'2026-01-01')+1 - COUNT(pd.id)) as unpaid_days,
-           (DATEDIFF(NOW(),'2026-01-01')+1 - COUNT(pd.id)) * 5 as arrears
+           (CURRENT_DATE - DATE '2026-01-01' + 1 - COUNT(pd.id)) as unpaid_days,
+           (CURRENT_DATE - DATE '2026-01-01' + 1 - COUNT(pd.id)) * 5 as arrears
     FROM members m
-    LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date <= NOW()
+    LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date <= CURRENT_DATE
     WHERE m.status = 'active'
     GROUP BY m.id, m.name
     ORDER BY arrears DESC

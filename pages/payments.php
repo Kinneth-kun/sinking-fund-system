@@ -49,7 +49,7 @@ $filterMonth  = $_GET['filter_month'] ?? '';
 
 $whereClauses = []; $params = [];
 if ($filterMember) { $whereClauses[] = 'p.member_id = ?'; $params[] = $filterMember; }
-if ($filterMonth)  { $whereClauses[] = "DATE_FORMAT(p.payment_date,'%Y-%m') = ?"; $params[] = $filterMonth; }
+if ($filterMonth)  { $whereClauses[] = "TO_CHAR(p.payment_date, 'YYYY-MM') = ?"; $params[] = $filterMonth; }
 $where = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
 
 $stmt = $db->prepare("
@@ -64,9 +64,9 @@ $payments = $stmt->fetchAll();
 $allStats = $db->query("
     SELECT m.id, m.name,
            COUNT(pd.id) as paid_days,
-           (DATEDIFF(NOW(),'2026-01-01')+1) as elapsed
+           (CURRENT_DATE - DATE '2026-01-01' + 1) as elapsed
     FROM members m
-    LEFT JOIN payment_days pd ON pd.member_id=m.id AND pd.covered_date<=NOW()
+    LEFT JOIN payment_days pd ON pd.member_id=m.id AND pd.covered_date<=CURRENT_DATE
     WHERE m.status='active'
     GROUP BY m.id
 ")->fetchAll();

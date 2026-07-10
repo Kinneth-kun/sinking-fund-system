@@ -1,12 +1,24 @@
 <?php
 require_once __DIR__ . '/../config/config.php';
 
-$sessionPath = __DIR__ . '/../storage/sessions';
-if (!is_dir($sessionPath)) {
-    mkdir($sessionPath, 0775, true);
+if (SESSION_DRIVER === 'database') {
+    require_once __DIR__ . '/DatabaseSessionHandler.php';
+    session_set_save_handler(new DatabaseSessionHandler(getDB(), SESSION_LIFETIME), true);
+} else {
+    $sessionPath = __DIR__ . '/../storage/sessions';
+    if (!is_dir($sessionPath)) {
+        mkdir($sessionPath, 0775, true);
+    }
+    session_save_path($sessionPath);
 }
-session_save_path($sessionPath);
 
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'secure' => str_starts_with(APP_URL, 'https://'),
+    'httponly' => true,
+    'samesite' => 'Lax',
+]);
 session_start();
 
 function isLoggedIn(): bool {
@@ -63,7 +75,13 @@ function loginUser(array $user, bool $remember = false): void {
         $db = getDB();
         $db->prepare("INSERT INTO user_sessions (user_id, session_token, expires_at) VALUES (?, ?, ?)")
            ->execute([$user['id'], $token, $expires]);
-        setcookie('remember_token', $token, time() + SESSION_LIFETIME, '/', '', false, true);
+        setcookie('remember_token', $token, [
+            'expires' => time() + SESSION_LIFETIME,
+            'path' => '/',
+            'secure' => str_starts_with(APP_URL, 'https://'),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
     }
 }
 
@@ -72,7 +90,13 @@ function logoutUser(): void {
         $db = getDB();
         $db->prepare("DELETE FROM user_sessions WHERE session_token = ?")
            ->execute([$_COOKIE['remember_token']]);
-        setcookie('remember_token', '', time() - 3600, '/');
+        setcookie('remember_token', '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => str_starts_with(APP_URL, 'https://'),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
     }
     session_destroy();
 }

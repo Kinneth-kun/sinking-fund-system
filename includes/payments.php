@@ -100,6 +100,7 @@ function recordPayment(int $memberId, float $amount, string $paymentDate, int $u
         $stmt = $db->prepare("
             INSERT INTO payments (member_id, amount, payment_date, days_covered, date_from, date_to, notes, recorded_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
         ");
         $stmt->execute([
             $memberId,
@@ -111,10 +112,10 @@ function recordPayment(int $memberId, float $amount, string $paymentDate, int $u
             $notes,
             $userId
         ]);
-        $paymentId = $db->lastInsertId();
+        $paymentId = (int) $stmt->fetchColumn();
 
         // Insert each covered day
-        $dayStmt = $db->prepare("INSERT IGNORE INTO payment_days (member_id, payment_id, covered_date) VALUES (?, ?, ?)");
+        $dayStmt = $db->prepare("INSERT INTO payment_days (member_id, payment_id, covered_date) VALUES (?, ?, ?) ON CONFLICT (member_id, covered_date) DO NOTHING");
         foreach ($calc['dates'] as $date) {
             $dayStmt->execute([$memberId, $paymentId, $date]);
         }
@@ -176,7 +177,7 @@ function getMonthlyTotals(int $year, int $month): array {
     $stmt = $db->prepare("
         SELECT COUNT(pd.id) * ? as total, COUNT(DISTINCT pd.member_id) as members_paid
         FROM payment_days pd
-        WHERE YEAR(pd.covered_date) = ? AND MONTH(pd.covered_date) = ?
+        WHERE EXTRACT(YEAR FROM pd.covered_date) = ? AND EXTRACT(MONTH FROM pd.covered_date) = ?
     ");
     $stmt->execute([DAILY_RATE, $year, $month]);
     return $stmt->fetch();
@@ -206,7 +207,7 @@ function getDashboardStats(): array {
     // This month's total
     $thisMonth = (int)$today->format('n');
     $thisYear  = (int)$today->format('Y');
-    $monthTotal = $db->prepare("SELECT COUNT(*) * ? FROM payment_days WHERE YEAR(covered_date) = ? AND MONTH(covered_date) = ?");
+    $monthTotal = $db->prepare("SELECT COUNT(*) * ? FROM payment_days WHERE EXTRACT(YEAR FROM covered_date) = ? AND EXTRACT(MONTH FROM covered_date) = ?");
     $monthTotal->execute([DAILY_RATE, $thisYear, $thisMonth]);
     $thisMonthTotal = $monthTotal->fetchColumn();
 
@@ -224,12 +225,12 @@ function getDashboardStats(): array {
     // Members with balance (unpaid days)
     $unpaidSummary = $db->query("
         SELECT m.name, m.id,
-               (DATEDIFF(NOW(), '" . START_DATE . "') + 1) as total_days,
+               (CURRENT_DATE - DATE '" . START_DATE . "' + 1) as total_days,
                COUNT(pd.id) as paid_days,
-               ((DATEDIFF(NOW(), '" . START_DATE . "') + 1) - COUNT(pd.id)) as unpaid_days,
-               ((DATEDIFF(NOW(), '" . START_DATE . "') + 1) - COUNT(pd.id)) * " . DAILY_RATE . " as balance_due
+               ((CURRENT_DATE - DATE '" . START_DATE . "' + 1) - COUNT(pd.id)) as unpaid_days,
+               ((CURRENT_DATE - DATE '" . START_DATE . "' + 1) - COUNT(pd.id)) * " . DAILY_RATE . " as balance_due
         FROM members m
-        LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date >= '" . START_DATE . "' AND pd.covered_date <= NOW()
+        LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date >= '" . START_DATE . "' AND pd.covered_date <= CURRENT_DATE
         WHERE m.status = 'active'
         GROUP BY m.id, m.name
         ORDER BY balance_due DESC

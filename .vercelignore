@@ -1,0 +1,9 @@
+.git
+.agents
+.env*
+.vercel
+node_modules
+vendor
+storage/sessions
+scripts
+android-offline/build

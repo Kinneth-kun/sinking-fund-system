@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'toggle') {
         $id = (int)($_POST['id'] ?? 0);
-        $db->prepare("UPDATE members SET status = IF(status='active','inactive','active') WHERE id = ?")->execute([$id]);
+        $db->prepare("UPDATE members SET status = CASE WHEN status='active' THEN 'inactive' ELSE 'active' END WHERE id = ?")->execute([$id]);
         $msg = 'Member status updated.';
     }
 
@@ -46,9 +46,9 @@ $members = $db->query("
     SELECT m.*,
            COUNT(pd.id) as days_paid,
            COUNT(pd.id) * 5 as total_paid,
-           (DATEDIFF(NOW(), '2026-01-01') + 1) as days_since_start
+           (CURRENT_DATE - DATE '2026-01-01' + 1) as days_since_start
     FROM members m
-    LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date <= NOW()
+    LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date <= CURRENT_DATE
     GROUP BY m.id
     ORDER BY m.name
 ")->fetchAll();

@@ -53,6 +53,11 @@ function sendVerificationEmail(string $toEmail, string $toName, string $token): 
 }
 
 function sendOtpEmail(string $toEmail, string $toName, string $code): bool {
+    if (SMTP_USERNAME === '' || SMTP_PASSWORD === '' || SMTP_FROM_EMAIL === '') {
+        error_log('[OTP Mailer ERROR] SMTP credentials are incomplete.');
+        return false;
+    }
+
     $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
