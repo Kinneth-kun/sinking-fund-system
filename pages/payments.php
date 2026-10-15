@@ -68,12 +68,19 @@ $payments = $stmt->fetchAll();
 // Member stats for JS
 $allStats = $db->query("
     SELECT m.id, m.name,
+<<<<<<< HEAD
            COUNT(pd.id) FILTER (WHERE pd.covered_date <= CURRENT_DATE) as paid_days,
            COUNT(pd.id) FILTER (WHERE pd.covered_date > CURRENT_DATE) as advance_days,
            MAX(pd.covered_date) FILTER (WHERE pd.covered_date > CURRENT_DATE) as advance_until,
            (CURRENT_DATE - DATE '2026-01-01' + 1) as elapsed
     FROM members m
     LEFT JOIN payment_days pd ON pd.member_id=m.id
+=======
+           COUNT(pd.id) as paid_days,
+           (CURRENT_DATE - DATE '2026-01-01' + 1) as elapsed
+    FROM members m
+    LEFT JOIN payment_days pd ON pd.member_id=m.id AND pd.covered_date<=CURRENT_DATE
+>>>>>>> 865812cf6d8f3ebf1e433273b3e7b0202a801b93
     WHERE m.status='active'
     GROUP BY m.id
 ")->fetchAll();

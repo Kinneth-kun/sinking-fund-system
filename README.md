@@ -11,9 +11,7 @@ PostgreSQL database; Vercel's function filesystem is not used for data.
 2. Import `database/schema.postgresql.sql` into it.
 3. Import existing member and payment data separately, if needed.
 4. Create a Vercel project from this repository.
-5. Add every value from `.env.example` in **Project Settings → Environment
-   Variables**. Set `APP_URL` to the production Vercel URL and keep
-   `SESSION_DRIVER=database`.
+5. Add every value from `.env.example` in **Project Settings → Environment Variables**. Set `APP_URL` to the production Vercel URL, keep `SESSION_DRIVER=database`, set both `SMTP_USERNAME` and `SMTP_FROM_EMAIL` to `kinnethdaluag2004@gmail.com`, and set `SMTP_PASSWORD` to a Gmail App Password generated for that same account.
 6. Deploy, visit `/setup.php` once to create the administrator, then log in.
 
 For CLI deployment, authenticate the Vercel CLI and run:
@@ -71,7 +69,7 @@ define('DB_USER', 'postgres');   // Your PostgreSQL user
 define('DB_PASS', '');           // Your PostgreSQL password
 
 // Gmail SMTP
-define('SMTP_USERNAME', 'your_gmail@gmail.com');
+define('SMTP_USERNAME', 'kinnethdaluag2004@gmail.com');
 define('SMTP_PASSWORD', 'your_16_char_app_password');  // Gmail App Password!
 
 // App URL

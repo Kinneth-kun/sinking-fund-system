@@ -236,6 +236,7 @@ function getDashboardStats(): array {
     $unpaidSummary = $db->query("
         SELECT m.name, m.id,
                (CURRENT_DATE - DATE '" . START_DATE . "' + 1) as total_days,
+<<<<<<< HEAD
                COUNT(pd.id) FILTER (WHERE pd.covered_date <= CURRENT_DATE) as paid_days,
                COUNT(pd.id) FILTER (WHERE pd.covered_date > CURRENT_DATE) as advance_days,
                MAX(pd.covered_date) FILTER (WHERE pd.covered_date > CURRENT_DATE) as advance_until,
@@ -243,6 +244,13 @@ function getDashboardStats(): array {
                ((CURRENT_DATE - DATE '" . START_DATE . "' + 1) - COUNT(pd.id) FILTER (WHERE pd.covered_date <= CURRENT_DATE)) * " . DAILY_RATE . " as balance_due
         FROM members m
         LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date >= '" . START_DATE . "'
+=======
+               COUNT(pd.id) as paid_days,
+               ((CURRENT_DATE - DATE '" . START_DATE . "' + 1) - COUNT(pd.id)) as unpaid_days,
+               ((CURRENT_DATE - DATE '" . START_DATE . "' + 1) - COUNT(pd.id)) * " . DAILY_RATE . " as balance_due
+        FROM members m
+        LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date >= '" . START_DATE . "' AND pd.covered_date <= CURRENT_DATE
+>>>>>>> 865812cf6d8f3ebf1e433273b3e7b0202a801b93
         WHERE m.status = 'active'
         GROUP BY m.id, m.name
         ORDER BY balance_due DESC

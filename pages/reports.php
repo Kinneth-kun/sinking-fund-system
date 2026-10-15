@@ -43,7 +43,11 @@ $topMembers = $db->query("
            COUNT(pd.id) * 5 as total_paid,
            (CURRENT_DATE - DATE '2026-01-01' + 1) as elapsed
     FROM members m
+<<<<<<< HEAD
     LEFT JOIN payment_days pd ON pd.member_id = m.id
+=======
+    LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date <= CURRENT_DATE
+>>>>>>> 865812cf6d8f3ebf1e433273b3e7b0202a801b93
     WHERE m.status = 'active'
     GROUP BY m.id, m.name
     ORDER BY total_paid DESC

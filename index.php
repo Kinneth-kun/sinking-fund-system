@@ -322,7 +322,11 @@ $csrf = generateCsrfToken();
     body { padding:8px 0; }
     .wrap { padding:10px 20px; }
     .logo { margin-bottom:14px; }
+<<<<<<< HEAD
     .logo-icon { width:44px; height:44px; margin-bottom:4px; }
+=======
+    .logo-icon { font-size:38px; margin-bottom:4px; }
+>>>>>>> 865812cf6d8f3ebf1e433273b3e7b0202a801b93
     .logo h1 { font-size:24px; }
     .steps { margin-bottom:16px; }
     .step-dot { width:32px; height:32px; }

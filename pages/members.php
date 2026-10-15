@@ -50,7 +50,11 @@ $members = $db->query("
            COUNT(pd.id) * 5 as total_paid,
            (CURRENT_DATE - DATE '2026-01-01' + 1) as days_since_start
     FROM members m
+<<<<<<< HEAD
     LEFT JOIN payment_days pd ON pd.member_id = m.id
+=======
+    LEFT JOIN payment_days pd ON pd.member_id = m.id AND pd.covered_date <= CURRENT_DATE
+>>>>>>> 865812cf6d8f3ebf1e433273b3e7b0202a801b93
     GROUP BY m.id
     ORDER BY m.name
 ")->fetchAll();
